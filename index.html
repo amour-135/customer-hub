@@ -1,0 +1,219 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>客户建联中台</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f5f6fa; color: #1a1a2e; font-size: 14px; }
+  .header { background: #1a1a2e; color: #fff; padding: 20px 32px; display: flex; align-items: center; justify-content: space-between; }
+  .header h1 { font-size: 18px; font-weight: 600; }
+  .header .badge { background: #4a4a8a; padding: 4px 12px; border-radius: 12px; font-size: 12px; }
+  .last-sync { text-align: right; padding: 6px 32px; font-size: 12px; color: #888; background: #f5f6fa; }
+  .stats { display: flex; gap: 16px; padding: 20px 32px; background: #fff; border-bottom: 1px solid #eee; }
+  .stat { flex: 1; background: #f5f6fa; border-radius: 10px; padding: 16px; text-align: center; }
+  .stat .num { font-size: 28px; font-weight: 700; color: #1a1a2e; }
+  .stat .label { font-size: 12px; color: #888; margin-top: 4px; }
+  .stat.alert { background: #fff3f3; }
+  .stat.alert .num { color: #e74c3c; }
+  .stat.ok { background: #f0fff4; }
+  .stat.ok .num { color: #27ae60; }
+  .stat.im { background: #e8f0fe; }
+  .stat.im .num { color: #1a73e8; }
+  .toolbar { display: flex; gap: 10px; padding: 16px 32px; background: #fff; border-bottom: 1px solid #eee; align-items: center; flex-wrap: wrap; }
+  .toolbar input { flex: 1; min-width: 200px; padding: 8px 14px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; }
+  .toolbar select { padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; background: #fff; }
+  .refresh-btn { padding: 8px 16px; background: #4a4a8a; color: #fff; border: none; border-radius: 6px; font-size: 13px; cursor: pointer; }
+  .refresh-btn:hover { background: #3a3a6a; }
+  .sync-btn { padding: 8px 16px; background: #1a73e8; color: #fff; border: none; border-radius: 6px; font-size: 13px; cursor: pointer; }
+  .sync-btn:hover { background: #1557b0; }
+  .table-wrap { padding: 20px 32px; }
+  table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+  th { background: #f8f9fa; padding: 12px 16px; text-align: left; font-weight: 600; font-size: 12px; color: #888; border-bottom: 1px solid #eee; }
+  td { padding: 12px 16px; border-bottom: 1px solid #f0f0f0; vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #fafafa; }
+  .star { color: #f39c12; font-size: 16px; }
+  .health { font-weight: 700; }
+  .health.alert { color: #e74c3c; }
+  .health.ok { color: #27ae60; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 12px; }
+  .badge-feishu { background: #e8f0fe; color: #1a73e8; }
+  .badge-dingtalk { background: #f0f0ff; color: #1677ff; }
+  .badge-wxwork { background: #f0fff4; color: #52c41a; }
+  .badge-none { background: #f5f5f5; color: #999; }
+  .btn-jump { display: inline-block; padding: 4px 12px; border-radius: 5px; font-size: 12px; text-decoration: none; color: #fff; }
+  .btn-feishu { background: #1a73e8; }
+  .btn-feishu:hover { background: #1557b0; }
+  .btn-dingtalk { background: #1677ff; }
+  .btn-wxwork { background: #52c41a; }
+  .btn-unset { background: #ccc; color: #666; cursor: default; }
+  .loading, .empty { text-align: center; padding: 40px; color: #888; }
+  .cs-name { font-weight: 600; }
+  .org-name { color: #666; font-size: 12px; }
+  .notes-cell { max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #888; font-size: 12px; }
+  @media (max-width: 768px) { .stats { flex-wrap: wrap; } .stat { min-width: 45%; } .toolbar { padding: 12px 16px; } .table-wrap { padding: 12px 16px; } }
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>客户建联中台</h1>
+  <span class="badge">BOSS 数据</span>
+</div>
+<div class="last-sync" id="lastSync"></div>
+
+<div class="stats" id="stats">
+  <div class="stat"><div class="num" id="statTotal">—</div><div class="label">客户总数</div></div>
+  <div class="stat alert"><div class="num" id="statAlert">—</div><div class="label">健康度告警</div></div>
+  <div class="stat ok"><div class="num" id="statOk">—</div><div class="label">健康</div></div>
+  <div class="stat im"><div class="num" id="statFeishu">—</div><div class="label">已建联(飞书)</div></div>
+  <div class="stat"><div class="num" id="statUnset">—</div><div class="label">未建联</div></div>
+</div>
+
+<div class="toolbar">
+  <input type="text" id="searchInput" placeholder="搜索客户名称…" oninput="loadData()">
+  <select id="healthFilter" onchange="loadData()">
+    <option value="">全部健康度</option>
+    <option value="alert">告警 (≥2.0)</option>
+    <option value="ok">健康 (&lt;2.0)</option>
+  </select>
+  <select id="imFilter" onchange="loadData()">
+    <option value="">全部建联方式</option>
+    <option value="feishu">飞书</option>
+    <option value="dingtalk">钉钉</option>
+    <option value="wxwork">企微</option>
+  </select>
+  <button class="sync-btn" onclick="syncAndReload()">同步BOSS</button>
+</div>
+
+<div class="table-wrap">
+  <div id="loading" class="loading">加载中…</div>
+  <div id="empty" class="empty" style="display:none">没有匹配的客户</div>
+  <table id="table" style="display:none">
+    <thead>
+      <tr>
+        <th>客户名称</th>
+        <th>星级</th>
+        <th>健康度</th>
+        <th>客户成功经理</th>
+        <th>建联方式</th>
+        <th>跳转</th>
+      </tr>
+    </thead>
+    <tbody id="tbody"></tbody>
+  </table>
+</div>
+
+<script>
+async function loadStats() {
+  try {
+    const r = await fetch('/api/stats');
+    const d = await r.json();
+    document.getElementById('statTotal').textContent = d.total || 0;
+    document.getElementById('statAlert').textContent = d.alert_count || 0;
+    document.getElementById('statOk').textContent = (d.total || 0) - (d.alert_count || 0);
+    document.getElementById('statFeishu').textContent = d.feishu_count || 0;
+    document.getElementById('statUnset').textContent = d.unset_count || 0;
+    if (d.last_synced) {
+      document.getElementById('lastSync').textContent = 'BOSS 同步时间：' + d.last_synced.synced_at + '，共 ' + d.last_synced.count + ' 条';
+    }
+  } catch(e) { console.error(e); }
+}
+
+async function loadData() {
+  const kw = document.getElementById('searchInput').value.trim();
+  const hf = document.getElementById('healthFilter').value;
+  const im = document.getElementById('imFilter').value;
+  let url = '/api/customers?';
+  if (kw) url += 'keyword=' + encodeURIComponent(kw) + '&';
+  if (hf) url += 'health=' + encodeURIComponent(hf) + '&';
+  if (im) url += 'im_type=' + encodeURIComponent(im) + '&';
+  document.getElementById('loading').style.display = 'block';
+  document.getElementById('table').style.display = 'none';
+  document.getElementById('empty').style.display = 'none';
+  try {
+    const r = await fetch(url);
+    const data = await r.json();
+    document.getElementById('loading').style.display = 'none';
+    if (!data.length) {
+      document.getElementById('empty').style.display = 'block';
+      return;
+    }
+    const tbody = document.getElementById('tbody');
+    tbody.innerHTML = data.map(c => {
+      const star = c.manual_star_level ? '<span class="star">' + '★'.repeat(c.manual_star_level) + '</span>' : '—';
+      const health = c.health_indicator != null ? parseFloat(c.health_indicator) : null;
+      const healthCls = health !== null && health >= 2.0 ? 'alert' : (health !== null ? 'ok' : '');
+      const healthTxt = health !== null ? health.toFixed(1) : '—';
+      const cs = c.customer_success || '—';
+      return '<tr>' +
+        '<td><div class="cs-name">' + esc(c.org_name || '') + '</div></td>' +
+        '<td>' + star + '</td>' +
+        '<td><span class="health ' + healthCls + '">' + healthTxt + '</span></td>' +
+        '<td>' + esc(cs) + '</td>' +
+        '<td>' + renderBadge(c.im_type) + '</td>' +
+        '<td>' + renderJumpBtn(c.im_type, c.im_group_id, c.im_group_url) + '</td>' +
+      '</tr>';
+    }).join('');
+    document.getElementById('table').style.display = 'table';
+  } catch(e) {
+    document.getElementById('loading').textContent = '加载失败：' + e;
+  }
+}
+
+async function syncAndReload() {
+  const btn = document.querySelector('.sync-btn');
+  btn.textContent = '同步中…';
+  btn.disabled = true;
+  try {
+    const r = await fetch('/api/sync');
+    const d = await r.json();
+    if (d.success) {
+      btn.textContent = '已同步 ' + d.count + ' 条';
+      await loadStats();
+      await loadData();
+      setTimeout(() => { btn.textContent = '同步BOSS'; btn.disabled = false; }, 2000);
+    } else {
+      btn.textContent = '同步失败';
+      btn.disabled = false;
+    }
+  } catch(e) {
+    btn.textContent = '同步失败';
+    btn.disabled = false;
+  }
+}
+
+function renderBadge(type) {
+  if (type === 'feishu') return '<span class="badge badge-feishu">飞书</span>';
+  if (type === 'dingtalk') return '<span class="badge badge-dingtalk">钉钉</span>';
+  if (type === 'wxwork') return '<span class="badge badge-wxwork">企微</span>';
+  return '<span class="badge badge-none">未设置</span>';
+}
+
+function renderJumpBtn(type, groupId, groupUrl) {
+  if (!type || !groupId) return '<span class="btn-jump btn-unset">未配置</span>';
+  const url = groupUrl || makeDeepLink(type, groupId);
+  const label = type === 'feishu' ? '飞书' : type === 'dingtalk' ? '钉钉' : type === 'wxwork' ? '企微' : '跳转';
+  const cls = type === 'feishu' ? 'btn-feishu' : type === 'dingtalk' ? 'btn-dingtalk' : type === 'wxwork' ? 'btn-wxwork' : 'btn-unset';
+  return '<a class="btn-jump ' + cls + '" href="' + esc(url) + '" target="_blank">' + label + '群</a>';
+}
+
+function makeDeepLink(type, groupId) {
+  if (!groupId) return null;
+  if (type === 'feishu') return 'https://applink.feishu.cn/client/chat/open?openChatId=' + groupId;
+  if (type === 'dingtalk') return 'dingtalk://dingtalkclient/action/openconversation?cid=' + groupId;
+  if (type === 'wxwork') return 'wxwork://message?conversationid=' + groupId;
+  return null;
+}
+
+function esc(s) {
+  if (s === null || s === undefined) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\"/g,'&quot;');
+}
+
+loadStats();
+loadData();
+</script>
+</body>
+</html>
