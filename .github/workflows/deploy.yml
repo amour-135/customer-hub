@@ -13,32 +13,10 @@ jobs:
         with:
           path: actix-web
 
-      - name: Debug directory
-        run: |
-          echo "=== pwd ==="
-          pwd
-          echo "=== root ls ==="
-          ls -la
-          echo "=== actix-web ls ==="
-          ls -la actix-web/ 2>&1 || echo "actix-web not found"
-          echo "=== actix-web/Cargo.toml ==="
-          cat actix-web/Cargo.toml 2>&1 || echo "Cargo.toml not found"
+      - name: Install Wrangler
+        run: npm install -g wrangler
 
-      - name: Setup Rust
-        run: rustup target add wasm32-unknown-unknown
-
-      - name: Install wasm-pack
-        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
-
-      - name: Build WASM
-        run: |
-          cd actix-web
-          pwd
-          ls -la
-          wasm-pack build --target web --out-dir pkg
-
-      - name: Deploy to Cloudflare Workers
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      - name: Deploy
+        run: wrangler deploy --config actix-web/wrangler.toml
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
