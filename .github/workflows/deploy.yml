@@ -13,6 +13,12 @@ jobs:
         with:
           path: actix-web
 
+      - name: Debug
+        run: |
+          pwd
+          ls -la
+          ls actix-web/
+
       - name: Setup Rust
         run: rustup target add wasm32-unknown-unknown
 
