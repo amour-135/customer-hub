@@ -13,6 +13,17 @@ jobs:
         with:
           path: actix-web
 
+      - name: Debug directory
+        run: |
+          echo "=== pwd ==="
+          pwd
+          echo "=== root ls ==="
+          ls -la
+          echo "=== actix-web ls ==="
+          ls -la actix-web/ 2>&1 || echo "actix-web not found"
+          echo "=== actix-web/Cargo.toml ==="
+          cat actix-web/Cargo.toml 2>&1 || echo "Cargo.toml not found"
+
       - name: Setup Rust
         run: rustup target add wasm32-unknown-unknown
 
@@ -20,8 +31,11 @@ jobs:
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
 
       - name: Build WASM
-        run: wasm-pack build --target web --out-dir pkg
-        working-directory: actix-web
+        run: |
+          cd actix-web
+          pwd
+          ls -la
+          wasm-pack build --target web --out-dir pkg
 
       - name: Deploy to Cloudflare Workers
         uses: cloudflare/wrangler-action@v3
