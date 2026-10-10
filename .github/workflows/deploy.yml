@@ -21,8 +21,8 @@ jobs:
           curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
 
       - name: Build WASM
+        working-directory: ./actix-web
         run: |
-          cd actix-web
           wasm-pack build --target web --out-dir pkg
 
       - name: Deploy to Cloudflare Workers
