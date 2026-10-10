@@ -2,6 +2,3 @@ name = "customer-hub"
 main = "src/main.js"
 compatibility_date = "2024-01-01"
 account_id = "3cb0bd051d324c72ab2c3bbfc3b7e63c"
-
-[site]
-bucket = "./public"
